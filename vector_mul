@@ -1,0 +1,79 @@
+!nvidia-smi
+
+%%writefile matrix_mul_input.cu
+#include <stdio.h>
+
+#define N 3   // Change size if needed
+
+__global__ void matrixMultiply(int *A, int *B, int *C) {
+    int row = threadIdx.y;
+    int col = threadIdx.x;
+
+    int sum = 0;
+
+    for (int k = 0; k < N; k++) {
+        sum += A[row * N + k] * B[k * N + col];
+    }
+
+    C[row * N + col] = sum;
+}
+
+int main() {
+    int A[N][N], B[N][N], C[N][N];
+
+    int *d_A, *d_B, *d_C;
+
+    // Take input for Matrix A
+    printf("Enter elements of Matrix A:\n");
+    for(int i=0;i<N;i++){
+        for(int j=0;j<N;j++){
+            scanf("%d", &A[i][j]);
+        }
+    }
+
+    // Take input for Matrix B
+    printf("Enter elements of Matrix B:\n");
+    for(int i=0;i<N;i++){
+        for(int j=0;j<N;j++){
+            scanf("%d", &B[i][j]);
+        }
+    }
+
+    // Allocate memory on GPU
+    cudaMalloc((void**)&d_A, N*N*sizeof(int));
+    cudaMalloc((void**)&d_B, N*N*sizeof(int));
+    cudaMalloc((void**)&d_C, N*N*sizeof(int));
+
+    // Copy data to GPU
+    cudaMemcpy(d_A, A, N*N*sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_B, B, N*N*sizeof(int), cudaMemcpyHostToDevice);
+
+    dim3 threads(N, N);
+
+    // Kernel launch
+    matrixMultiply<<<1, threads>>>(d_A, d_B, d_C);
+
+    // Copy result back
+    cudaMemcpy(C, d_C, N*N*sizeof(int), cudaMemcpyDeviceToHost);
+
+    // Print result
+    printf("\nResult Matrix:\n");
+    for(int i=0;i<N;i++){
+        for(int j=0;j<N;j++){
+            printf("%d ", C[i][j]);
+        }
+        printf("\n");
+    }
+
+    // Free memory
+    cudaFree(d_A);
+    cudaFree(d_B);
+    cudaFree(d_C);
+
+    return 0;
+}
+
+
+!nvcc matrix_mul_input.cu -o matrix_mul_input
+
+!./matrix_mul_input
